@@ -9,10 +9,12 @@
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0a7cff">
 
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"></script>
+<!-- ✅ Firebase (WORKING VERSION) -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
+<!-- Chart -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
@@ -23,6 +25,7 @@ header {
     color:white;
     text-align:center;
     padding:15px;
+    font-size:20px;
 }
 
 .container { padding:15px; }
@@ -31,9 +34,16 @@ input, button {
     width:100%;
     padding:10px;
     margin:5px 0;
+    border-radius:5px;
+    border:1px solid #ccc;
 }
 
-button { background:green; color:white; border:none; }
+button {
+    background:green;
+    color:white;
+    border:none;
+    font-size:15px;
+}
 
 table {
     width:100%;
@@ -48,7 +58,11 @@ th, td {
     text-align:center;
 }
 
-.delete-btn { background:red; color:white; }
+th { background:#0a7cff; color:white; }
+
+.delete-btn { background:red; color:white; border:none; padding:5px; }
+
+.logout-btn { background:black; margin-top:10px; }
 
 canvas {
     margin-top:20px;
@@ -64,7 +78,7 @@ canvas {
 
 <div class="container">
 
-<!-- LOGIN -->
+<!-- 🔐 AUTH -->
 <div id="auth">
 <input type="email" id="email" placeholder="Email">
 <input type="password" id="password" placeholder="Password">
@@ -72,11 +86,13 @@ canvas {
 <button onclick="login()">Login</button>
 </div>
 
-<!-- APP -->
+<!-- 📊 APP -->
 <div id="app" style="display:none;">
 
+<button class="logout-btn" onclick="logout()">Logout</button>
+
 <input type="text" id="product" placeholder="Product Name">
-<input type="number" id="amount" placeholder="Amount">
+<input type="number" id="amount" placeholder="Amount (₦)">
 <input type="date" id="date">
 
 <button onclick="addSale()">Add Sale</button>
@@ -102,28 +118,44 @@ canvas {
 </div>
 
 <script>
-// 🔥 PASTE YOUR FIREBASE CONFIG HERE
+// 🔥 PUT YOUR REAL FIREBASE CONFIG HERE
 const firebaseConfig = {
-  apiKey: "YOUR_KEY",
-  authDomain: "YOUR_DOMAIN",
-  projectId: "YOUR_ID",
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "XXXX",
+  appId: "XXXX"
 };
 
 // INIT
 firebase.initializeApp(firebaseConfig);
+
 const auth = firebase.auth();
 const db = firebase.firestore();
+
+const authDiv = document.getElementById("auth");
+const appDiv = document.getElementById("app");
 
 let userId = null;
 
 // REGISTER
 function register() {
-    auth.createUserWithEmailAndPassword(email.value, password.value);
+    auth.createUserWithEmailAndPassword(email.value, password.value)
+    .then(()=> alert("Registered successfully"))
+    .catch(e => alert(e.message));
 }
 
 // LOGIN
 function login() {
-    auth.signInWithEmailAndPassword(email.value, password.value);
+    auth.signInWithEmailAndPassword(email.value, password.value)
+    .then(()=> alert("Login successful"))
+    .catch(e => alert(e.message));
+}
+
+// LOGOUT
+function logout() {
+    auth.signOut();
 }
 
 // AUTH STATE
@@ -131,27 +163,32 @@ auth.onAuthStateChanged(user => {
     if (user) {
         userId = user.uid;
         authDiv.style.display = "none";
-        app.style.display = "block";
+        appDiv.style.display = "block";
         loadSales();
+    } else {
+        authDiv.style.display = "block";
+        appDiv.style.display = "none";
     }
 });
 
 // ADD SALE
 function addSale() {
-    const sale = {
+    if (!product.value || !amount.value || !date.value) {
+        alert("Fill all fields");
+        return;
+    }
+
+    db.collection("sales").add({
         product: product.value,
         amount: Number(amount.value),
         date: date.value,
-        time: new Date().toLocaleTimeString()
-    };
-
-    db.collection("sales").add({
-        ...sale,
-        userId
+        time: new Date().toLocaleTimeString(),
+        userId: userId
     });
 
     product.value = "";
     amount.value = "";
+    date.value = "";
 }
 
 // LOAD SALES
@@ -169,7 +206,7 @@ function loadSales() {
             table.innerHTML += `
             <tr>
                 <td>${s.product}</td>
-                <td>${s.amount}</td>
+                <td>₦${s.amount}</td>
                 <td>${s.date}</td>
                 <td>${s.time}</td>
                 <td><button class="delete-btn" onclick="del('${doc.id}')">X</button></td>
@@ -188,8 +225,11 @@ function del(id) {
 }
 
 // CHART
+let chart;
 function drawChart(data) {
-    new Chart(document.getElementById("chart"), {
+    if(chart) chart.destroy();
+
+    chart = new Chart(document.getElementById("chart"), {
         type: "bar",
         data: {
             labels: Object.keys(data),
@@ -201,7 +241,7 @@ function drawChart(data) {
     });
 }
 
-// EXPORT EXCEL
+// EXPORT CSV
 function exportExcel() {
     let csv = "Product,Amount,Date,Time\n";
 
