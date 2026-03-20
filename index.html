@@ -3,96 +3,61 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <title>Sales Record App</title>
 
+<link rel="manifest" href="manifest.json">
+
+<meta name="theme-color" content="#0a7cff">
+
 <style>
-    body {
-        font-family: Arial, sans-serif;
-        margin: 0;
-        background: #f4f4f4;
-    }
+body { font-family: Arial; margin: 0; background: #f4f4f4; }
+header { background: #0a7cff; color: white; padding: 20px; text-align: center; font-size: 22px; }
+.container { padding: 15px; }
 
-    header {
-        background: #0a7cff;
-        color: white;
-        padding: 20px;
-        text-align: center;
-        font-size: 24px;
-        font-weight: bold;
-    }
+input, button {
+    width: 100%;
+    padding: 10px;
+    margin: 6px 0;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+}
 
-    .container {
-        padding: 20px;
-    }
+button {
+    background: green;
+    color: white;
+    border: none;
+}
 
-    .form-box {
-        background: white;
-        padding: 15px;
-        border-radius: 10px;
-        box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        margin-bottom: 20px;
-    }
+table {
+    width: 100%;
+    background: white;
+    margin-top: 15px;
+    border-collapse: collapse;
+}
 
-    input {
-        width: 100%;
-        padding: 10px;
-        margin: 8px 0;
-        border-radius: 5px;
-        border: 1px solid #ccc;
-    }
+th, td {
+    padding: 10px;
+    border-bottom: 1px solid #ddd;
+    text-align: center;
+}
 
-    button {
-        width: 100%;
-        padding: 12px;
-        background: green;
-        color: white;
-        border: none;
-        border-radius: 5px;
-        font-size: 16px;
-        cursor: pointer;
-    }
+th { background: #0a7cff; color: white; }
 
-    button:hover {
-        background: darkgreen;
-    }
+.delete-btn {
+    background: red;
+    color: white;
+    border: none;
+    padding: 5px;
+}
 
-    table {
-        width: 100%;
-        border-collapse: collapse;
-        background: white;
-        border-radius: 10px;
-        overflow: hidden;
-    }
-
-    th, td {
-        padding: 10px;
-        border-bottom: 1px solid #ddd;
-        text-align: center;
-    }
-
-    th {
-        background: #0a7cff;
-        color: white;
-    }
-
-    .delete-btn {
-        background: red;
-        color: white;
-        border: none;
-        padding: 5px 8px;
-        border-radius: 5px;
-        cursor: pointer;
-    }
-
-    .total-box {
-        margin-top: 15px;
-        padding: 10px;
-        background: #fff;
-        border-radius: 10px;
-        font-weight: bold;
-        text-align: center;
-        box-shadow: 0 0 5px rgba(0,0,0,0.1);
-    }
+.total {
+    margin-top: 10px;
+    padding: 10px;
+    background: white;
+    text-align: center;
+    font-weight: bold;
+}
 </style>
 </head>
 
@@ -100,37 +65,33 @@
 
 <header>
     SALES RECORD APP
-    <div style="font-size:14px; font-weight:normal;">
-        Simple tool for business owners to track daily sales
-    </div>
+    <div style="font-size:13px;">Business Sales Tracker</div>
 </header>
 
 <div class="container">
 
-    <div class="form-box">
-        <input type="text" id="product" placeholder="Product Name">
-        <input type="number" id="amount" placeholder="Amount (₦)">
-        <input type="date" id="date">
+<input type="text" id="product" placeholder="Product Name">
+<input type="number" id="amount" placeholder="Amount (₦)">
+<input type="date" id="date">
 
-        <button onclick="addSale()">Add Sale</button>
-    </div>
+<button onclick="addSale()">Add Sale</button>
 
-    <table id="salesTable">
-        <thead>
-            <tr>
-                <th>Product</th>
-                <th>Amount (₦)</th>
-                <th>Date</th>
-                <th>Time</th>
-                <th>Action</th>
-            </tr>
-        </thead>
-        <tbody></tbody>
-    </table>
+<table>
+<thead>
+<tr>
+<th>Product</th>
+<th>Amount</th>
+<th>Date</th>
+<th>Time</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody id="table"></tbody>
+</table>
 
-    <div class="total-box">
-        Total Sales: ₦<span id="total">0</span>
-    </div>
+<div class="total">
+Total: ₦<span id="total">0</span>
+</div>
 
 </div>
 
@@ -138,66 +99,65 @@
 let sales = JSON.parse(localStorage.getItem("sales")) || [];
 
 function addSale() {
-    let product = document.getElementById("product").value;
-    let amount = document.getElementById("amount").value;
-    let date = document.getElementById("date").value;
+    let product = productInput.value;
+    let amount = amountInput.value;
+    let date = dateInput.value;
 
     if (!product || !amount || !date) {
-        alert("Please fill all fields");
+        alert("Fill all fields");
         return;
     }
 
     let time = new Date().toLocaleTimeString();
 
-    let sale = {
-        product,
-        amount: Number(amount),
-        date,
-        time
-    };
-
-    sales.push(sale);
+    sales.push({product, amount:Number(amount), date, time});
     localStorage.setItem("sales", JSON.stringify(sales));
 
-    document.getElementById("product").value = "";
-    document.getElementById("amount").value = "";
-    document.getElementById("date").value = "";
+    productInput.value = "";
+    amountInput.value = "";
+    dateInput.value = "";
 
-    displaySales();
+    display();
 }
 
-function displaySales() {
-    let table = document.querySelector("#salesTable tbody");
+function display() {
     table.innerHTML = "";
-
     let total = 0;
 
-    sales.forEach((sale, index) => {
-        total += sale.amount;
+    sales.forEach((s, i) => {
+        total += s.amount;
 
-        let row = `
-            <tr>
-                <td>${sale.product}</td>
-                <td>₦${sale.amount}</td>
-                <td>${sale.date}</td>
-                <td>${sale.time}</td>
-                <td><button class="delete-btn" onclick="deleteSale(${index})">Delete</button></td>
-            </tr>
-        `;
-
-        table.innerHTML += row;
+        table.innerHTML += `
+        <tr>
+            <td>${s.product}</td>
+            <td>₦${s.amount}</td>
+            <td>${s.date}</td>
+            <td>${s.time}</td>
+            <td><button class="delete-btn" onclick="del(${i})">X</button></td>
+        </tr>`;
     });
 
-    document.getElementById("total").innerText = total;
+    totalEl.innerText = total;
 }
 
-function deleteSale(index) {
-    sales.splice(index, 1);
+function del(i) {
+    sales.splice(i,1);
     localStorage.setItem("sales", JSON.stringify(sales));
-    displaySales();
+    display();
 }
 
-displaySales();
+const productInput = document.getElementById("product");
+const amountInput = document.getElementById("amount");
+const dateInput = document.getElementById("date");
+const table = document.getElementById("table");
+const totalEl = document.getElementById("total");
+
+display();
+
+// Register service worker
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('service-worker.js');
+}
 </script>
 
 </body>
