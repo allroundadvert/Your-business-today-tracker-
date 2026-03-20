@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sales Record App</title>
+
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        background: #f4f4f4;
+    }
+
+    header {
+        background: #0a7cff;
+        color: white;
+        padding: 20px;
+        text-align: center;
+        font-size: 24px;
+        font-weight: bold;
+    }
+
+    .container {
+        padding: 20px;
+    }
+
+    .form-box {
+        background: white;
+        padding: 15px;
+        border-radius: 10px;
+        box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+
+    input {
+        width: 100%;
+        padding: 10px;
+        margin: 8px 0;
+        border-radius: 5px;
+        border: 1px solid #ccc;
+    }
+
+    button {
+        width: 100%;
+        padding: 12px;
+        background: green;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        font-size: 16px;
+        cursor: pointer;
+    }
+
+    button:hover {
+        background: darkgreen;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        background: white;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+
+    th, td {
+        padding: 10px;
+        border-bottom: 1px solid #ddd;
+        text-align: center;
+    }
+
+    th {
+        background: #0a7cff;
+        color: white;
+    }
+
+    .delete-btn {
+        background: red;
+        color: white;
+        border: none;
+        padding: 5px 8px;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+
+    .total-box {
+        margin-top: 15px;
+        padding: 10px;
+        background: #fff;
+        border-radius: 10px;
+        font-weight: bold;
+        text-align: center;
+        box-shadow: 0 0 5px rgba(0,0,0,0.1);
+    }
+</style>
+</head>
+
+<body>
+
+<header>
+    SALES RECORD APP
+    <div style="font-size:14px; font-weight:normal;">
+        Simple tool for business owners to track daily sales
+    </div>
+</header>
+
+<div class="container">
+
+    <div class="form-box">
+        <input type="text" id="product" placeholder="Product Name">
+        <input type="number" id="amount" placeholder="Amount (₦)">
+        <input type="date" id="date">
+
+        <button onclick="addSale()">Add Sale</button>
+    </div>
+
+    <table id="salesTable">
+        <thead>
+            <tr>
+                <th>Product</th>
+                <th>Amount (₦)</th>
+                <th>Date</th>
+                <th>Time</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <div class="total-box">
+        Total Sales: ₦<span id="total">0</span>
+    </div>
+
+</div>
+
+<script>
+let sales = JSON.parse(localStorage.getItem("sales")) || [];
+
+function addSale() {
+    let product = document.getElementById("product").value;
+    let amount = document.getElementById("amount").value;
+    let date = document.getElementById("date").value;
+
+    if (!product || !amount || !date) {
+        alert("Please fill all fields");
+        return;
+    }
+
+    let time = new Date().toLocaleTimeString();
+
+    let sale = {
+        product,
+        amount: Number(amount),
+        date,
+        time
+    };
+
+    sales.push(sale);
+    localStorage.setItem("sales", JSON.stringify(sales));
+
+    document.getElementById("product").value = "";
+    document.getElementById("amount").value = "";
+    document.getElementById("date").value = "";
+
+    displaySales();
+}
+
+function displaySales() {
+    let table = document.querySelector("#salesTable tbody");
+    table.innerHTML = "";
+
+    let total = 0;
+
+    sales.forEach((sale, index) => {
+        total += sale.amount;
+
+        let row = `
+            <tr>
+                <td>${sale.product}</td>
+                <td>₦${sale.amount}</td>
+                <td>${sale.date}</td>
+                <td>${sale.time}</td>
+                <td><button class="delete-btn" onclick="deleteSale(${index})">Delete</button></td>
+            </tr>
+        `;
+
+        table.innerHTML += row;
+    });
+
+    document.getElementById("total").innerText = total;
+}
+
+function deleteSale(index) {
+    sales.splice(index, 1);
+    localStorage.setItem("sales", JSON.stringify(sales));
+    displaySales();
+}
+
+displaySales();
+</script>
+
+</body>
+</html>
