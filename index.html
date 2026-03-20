@@ -7,74 +7,80 @@
 <title>Sales Record App</title>
 
 <link rel="manifest" href="manifest.json">
-
 <meta name="theme-color" content="#0a7cff">
 
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <style>
-body { font-family: Arial; margin: 0; background: #f4f4f4; }
-header { background: #0a7cff; color: white; padding: 20px; text-align: center; font-size: 22px; }
-.container { padding: 15px; }
+body { font-family: Arial; margin: 0; background:#f4f4f4; }
+
+header {
+    background:#0a7cff;
+    color:white;
+    text-align:center;
+    padding:15px;
+}
+
+.container { padding:15px; }
 
 input, button {
-    width: 100%;
-    padding: 10px;
-    margin: 6px 0;
-    border-radius: 5px;
-    border: 1px solid #ccc;
+    width:100%;
+    padding:10px;
+    margin:5px 0;
 }
 
-button {
-    background: green;
-    color: white;
-    border: none;
-}
+button { background:green; color:white; border:none; }
 
 table {
-    width: 100%;
-    background: white;
-    margin-top: 15px;
+    width:100%;
+    background:white;
+    margin-top:10px;
     border-collapse: collapse;
 }
 
 th, td {
-    padding: 10px;
-    border-bottom: 1px solid #ddd;
-    text-align: center;
+    padding:8px;
+    border-bottom:1px solid #ddd;
+    text-align:center;
 }
 
-th { background: #0a7cff; color: white; }
+.delete-btn { background:red; color:white; }
 
-.delete-btn {
-    background: red;
-    color: white;
-    border: none;
-    padding: 5px;
-}
-
-.total {
-    margin-top: 10px;
-    padding: 10px;
-    background: white;
-    text-align: center;
-    font-weight: bold;
+canvas {
+    margin-top:20px;
+    background:white;
+    padding:10px;
 }
 </style>
 </head>
 
 <body>
 
-<header>
-    SALES RECORD APP
-    <div style="font-size:13px;">Business Sales Tracker</div>
-</header>
+<header>SALES RECORD APP</header>
 
 <div class="container">
 
+<!-- LOGIN -->
+<div id="auth">
+<input type="email" id="email" placeholder="Email">
+<input type="password" id="password" placeholder="Password">
+<button onclick="register()">Register</button>
+<button onclick="login()">Login</button>
+</div>
+
+<!-- APP -->
+<div id="app" style="display:none;">
+
 <input type="text" id="product" placeholder="Product Name">
-<input type="number" id="amount" placeholder="Amount (₦)">
+<input type="number" id="amount" placeholder="Amount">
 <input type="date" id="date">
 
 <button onclick="addSale()">Add Sale</button>
+<button onclick="exportExcel()">Export Excel</button>
 
 <table>
 <thead>
@@ -89,72 +95,131 @@ th { background: #0a7cff; color: white; }
 <tbody id="table"></tbody>
 </table>
 
-<div class="total">
-Total: ₦<span id="total">0</span>
+<canvas id="chart"></canvas>
+
 </div>
 
 </div>
 
 <script>
-let sales = JSON.parse(localStorage.getItem("sales")) || [];
+// 🔥 PASTE YOUR FIREBASE CONFIG HERE
+const firebaseConfig = {
+  apiKey: "YOUR_KEY",
+  authDomain: "YOUR_DOMAIN",
+  projectId: "YOUR_ID",
+};
 
-function addSale() {
-    let product = productInput.value;
-    let amount = amountInput.value;
-    let date = dateInput.value;
+// INIT
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
 
-    if (!product || !amount || !date) {
-        alert("Fill all fields");
-        return;
-    }
+let userId = null;
 
-    let time = new Date().toLocaleTimeString();
-
-    sales.push({product, amount:Number(amount), date, time});
-    localStorage.setItem("sales", JSON.stringify(sales));
-
-    productInput.value = "";
-    amountInput.value = "";
-    dateInput.value = "";
-
-    display();
+// REGISTER
+function register() {
+    auth.createUserWithEmailAndPassword(email.value, password.value);
 }
 
-function display() {
-    table.innerHTML = "";
-    let total = 0;
+// LOGIN
+function login() {
+    auth.signInWithEmailAndPassword(email.value, password.value);
+}
 
-    sales.forEach((s, i) => {
-        total += s.amount;
+// AUTH STATE
+auth.onAuthStateChanged(user => {
+    if (user) {
+        userId = user.uid;
+        authDiv.style.display = "none";
+        app.style.display = "block";
+        loadSales();
+    }
+});
 
-        table.innerHTML += `
-        <tr>
-            <td>${s.product}</td>
-            <td>₦${s.amount}</td>
-            <td>${s.date}</td>
-            <td>${s.time}</td>
-            <td><button class="delete-btn" onclick="del(${i})">X</button></td>
-        </tr>`;
+// ADD SALE
+function addSale() {
+    const sale = {
+        product: product.value,
+        amount: Number(amount.value),
+        date: date.value,
+        time: new Date().toLocaleTimeString()
+    };
+
+    db.collection("sales").add({
+        ...sale,
+        userId
     });
 
-    totalEl.innerText = total;
+    product.value = "";
+    amount.value = "";
 }
 
-function del(i) {
-    sales.splice(i,1);
-    localStorage.setItem("sales", JSON.stringify(sales));
-    display();
+// LOAD SALES
+function loadSales() {
+    db.collection("sales")
+    .where("userId","==",userId)
+    .onSnapshot(snapshot => {
+
+        table.innerHTML = "";
+        let totals = {};
+
+        snapshot.forEach(doc => {
+            let s = doc.data();
+
+            table.innerHTML += `
+            <tr>
+                <td>${s.product}</td>
+                <td>${s.amount}</td>
+                <td>${s.date}</td>
+                <td>${s.time}</td>
+                <td><button class="delete-btn" onclick="del('${doc.id}')">X</button></td>
+            </tr>`;
+
+            totals[s.date] = (totals[s.date] || 0) + s.amount;
+        });
+
+        drawChart(totals);
+    });
 }
 
-const productInput = document.getElementById("product");
-const amountInput = document.getElementById("amount");
-const dateInput = document.getElementById("date");
-const table = document.getElementById("table");
-const totalEl = document.getElementById("total");
+// DELETE
+function del(id) {
+    db.collection("sales").doc(id).delete();
+}
 
-display();
+// CHART
+function drawChart(data) {
+    new Chart(document.getElementById("chart"), {
+        type: "bar",
+        data: {
+            labels: Object.keys(data),
+            datasets: [{
+                label: "Daily Sales",
+                data: Object.values(data)
+            }]
+        }
+    });
+}
 
-// Register service worker
+// EXPORT EXCEL
+function exportExcel() {
+    let csv = "Product,Amount,Date,Time\n";
+
+    document.querySelectorAll("#table tr").forEach(row => {
+        let cols = row.querySelectorAll("td");
+        if(cols.length){
+            csv += `${cols[0].innerText},${cols[1].innerText},${cols[2].innerText},${cols[3].innerText}\n`;
+        }
+    });
+
+    let blob = new Blob([csv], {type:"text/csv"});
+    let a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "sales.csv";
+    a.click();
+}
+
+// PWA
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('service-worker.js');
 }
